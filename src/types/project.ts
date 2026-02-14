@@ -35,6 +35,10 @@ export interface Clip {
   timeSignature?: number | 'auto' | null;
   inferredMetas?: InferredMetas;
   sampleMode?: boolean;
+  autoExpandPrompt?: boolean;
+  // Crop support: original audio duration and offset into it
+  audioDuration?: number;  // Full audio buffer duration (set at gen/import)
+  audioOffset?: number;    // Offset into audio buffer (seconds), default 0
 }
 
 export interface Track {

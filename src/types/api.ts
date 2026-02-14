@@ -20,6 +20,7 @@ export interface LegoTaskParams {
   sample_mode?: boolean;
   sample_query?: string;
   use_format?: boolean;
+  use_cot_caption?: boolean;
 }
 
 /** All API responses are wrapped in this envelope */
