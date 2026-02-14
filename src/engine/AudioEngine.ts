@@ -1,0 +1,185 @@
+import { TrackNode } from './TrackNode';
+
+export interface ScheduledSource {
+  source: AudioBufferSourceNode;
+  clipId: string;
+  trackId: string;
+  startTime: number;
+}
+
+export interface ClipScheduleInfo {
+  clipId: string;
+  trackId: string;
+  startTime: number;
+  buffer: AudioBuffer;
+}
+
+/**
+ * Core audio engine managing AudioContext, track routing, and playback scheduling.
+ */
+export class AudioEngine {
+  ctx: AudioContext;
+  masterGain: GainNode;
+  trackNodes: Map<string, TrackNode> = new Map();
+  scheduledSources: ScheduledSource[] = [];
+
+  private _playing = false;
+  private _startedAt = 0;
+  private _offset = 0;
+  private _rafId: number | null = null;
+  private _onTimeUpdate: ((time: number) => void) | null = null;
+  private _onEnded: (() => void) | null = null;
+
+  // Stored for re-scheduling on loop
+  private _lastClips: ClipScheduleInfo[] = [];
+  private _lastTotalDuration = 0;
+
+  constructor() {
+    this.ctx = new AudioContext({ sampleRate: 48000 });
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.connect(this.ctx.destination);
+  }
+
+  async resume() {
+    if (this.ctx.state === 'suspended') {
+      await this.ctx.resume();
+    }
+  }
+
+  setTimeUpdateCallback(cb: (time: number) => void) {
+    this._onTimeUpdate = cb;
+  }
+
+  setOnEndedCallback(cb: () => void) {
+    this._onEnded = cb;
+  }
+
+  getOrCreateTrackNode(trackId: string): TrackNode {
+    let node = this.trackNodes.get(trackId);
+    if (!node) {
+      node = new TrackNode(this.ctx, this.masterGain);
+      this.trackNodes.set(trackId, node);
+    }
+    return node;
+  }
+
+  removeTrackNode(trackId: string) {
+    const node = this.trackNodes.get(trackId);
+    if (node) {
+      node.disconnect();
+      this.trackNodes.delete(trackId);
+    }
+  }
+
+  updateSoloState() {
+    const anySoloed = Array.from(this.trackNodes.values()).some((n) => n.soloed);
+    for (const node of this.trackNodes.values()) {
+      node.soloActive = anySoloed;
+    }
+  }
+
+  schedulePlayback(
+    clips: ClipScheduleInfo[],
+    fromTime: number,
+    totalDuration: number,
+  ) {
+    this.stopAllSources();
+
+    // Store for loop re-scheduling
+    this._lastClips = clips;
+    this._lastTotalDuration = totalDuration;
+
+    for (const clip of clips) {
+      const trackNode = this.getOrCreateTrackNode(clip.trackId);
+      const source = this.ctx.createBufferSource();
+      source.buffer = clip.buffer;
+      source.connect(trackNode.inputGain);
+
+      const clipEnd = clip.startTime + clip.buffer.duration;
+      if (clipEnd <= fromTime) continue;
+
+      const contextNow = this.ctx.currentTime;
+      if (clip.startTime >= fromTime) {
+        const delay = clip.startTime - fromTime;
+        source.start(contextNow + delay, 0);
+      } else {
+        const bufferOffset = fromTime - clip.startTime;
+        source.start(contextNow, bufferOffset);
+      }
+
+      this.scheduledSources.push({
+        source,
+        clipId: clip.clipId,
+        trackId: clip.trackId,
+        startTime: clip.startTime,
+      });
+    }
+
+    this._playing = true;
+    this._startedAt = this.ctx.currentTime;
+    this._offset = fromTime;
+    this._startTimeUpdate(totalDuration);
+  }
+
+  private _startTimeUpdate(totalDuration: number) {
+    const tick = () => {
+      if (!this._playing) return;
+      const elapsed = this.ctx.currentTime - this._startedAt;
+      const currentTime = this._offset + elapsed;
+
+      if (currentTime >= totalDuration) {
+        // Reached end — notify listener (transport handles loop vs stop)
+        this.stopAllSources();
+        this._playing = false;
+        if (this._rafId !== null) {
+          cancelAnimationFrame(this._rafId);
+          this._rafId = null;
+        }
+        this._onEnded?.();
+        return;
+      }
+
+      this._onTimeUpdate?.(currentTime);
+      this._rafId = requestAnimationFrame(tick);
+    };
+    this._rafId = requestAnimationFrame(tick);
+  }
+
+  stop() {
+    this._playing = false;
+    if (this._rafId !== null) {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+    this.stopAllSources();
+  }
+
+  stopAllSources() {
+    for (const s of this.scheduledSources) {
+      try { s.source.stop(); } catch { /* already stopped */ }
+      s.source.disconnect();
+    }
+    this.scheduledSources = [];
+  }
+
+  get playing() { return this._playing; }
+
+  getCurrentTime(): number {
+    if (!this._playing) return this._offset;
+    return this._offset + (this.ctx.currentTime - this._startedAt);
+  }
+
+  async decodeAudioData(blob: Blob): Promise<AudioBuffer> {
+    const arrayBuffer = await blob.arrayBuffer();
+    return this.ctx.decodeAudioData(arrayBuffer);
+  }
+
+  dispose() {
+    this.stop();
+    for (const node of this.trackNodes.values()) {
+      node.disconnect();
+    }
+    this.trackNodes.clear();
+    this.ctx.close();
+  }
+}

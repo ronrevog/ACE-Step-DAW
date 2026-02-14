@@ -1,0 +1,94 @@
+import { useCallback, useEffect } from 'react';
+import { useTransportStore } from '../store/transportStore';
+import { useProjectStore } from '../store/projectStore';
+import { getAudioEngine } from './useAudioEngine';
+import { loadAudioBlobByKey } from '../services/audioFileManager';
+
+export function useTransport() {
+  const { isPlaying, currentTime } = useTransportStore();
+  const project = useProjectStore((s) => s.project);
+
+  const play = useCallback(async (fromTime?: number) => {
+    const engine = getAudioEngine();
+    await engine.resume();
+
+    const proj = useProjectStore.getState().project;
+    if (!proj) return;
+
+    // Collect all clips with ready isolated audio
+    const clipBuffers: Array<{
+      clipId: string;
+      trackId: string;
+      startTime: number;
+      buffer: AudioBuffer;
+    }> = [];
+
+    for (const track of proj.tracks) {
+      for (const clip of track.clips) {
+        if (clip.generationStatus === 'ready' && clip.isolatedAudioKey) {
+          const blob = await loadAudioBlobByKey(clip.isolatedAudioKey);
+          if (blob) {
+            const buffer = await engine.decodeAudioData(blob);
+            clipBuffers.push({
+              clipId: clip.id,
+              trackId: track.id,
+              startTime: clip.startTime,
+              buffer,
+            });
+          }
+        }
+      }
+
+      // Update track node state
+      const trackNode = engine.getOrCreateTrackNode(track.id);
+      trackNode.volume = track.volume;
+      trackNode.muted = track.muted;
+      trackNode.soloed = track.soloed;
+    }
+    engine.updateSoloState();
+
+    const startFrom = fromTime ?? useTransportStore.getState().currentTime;
+    engine.schedulePlayback(clipBuffers, startFrom, proj.totalDuration);
+    useTransportStore.getState().play();
+  }, []);
+
+  const pause = useCallback(() => {
+    const engine = getAudioEngine();
+    const time = engine.getCurrentTime();
+    engine.stop();
+    useTransportStore.getState().pause();
+    useTransportStore.getState().seek(time);
+  }, []);
+
+  const stop = useCallback(() => {
+    const engine = getAudioEngine();
+    engine.stop();
+    useTransportStore.getState().stop();
+  }, []);
+
+  const seek = useCallback((time: number) => {
+    const engine = getAudioEngine();
+    if (engine.playing) {
+      engine.stop();
+      useTransportStore.getState().seek(time);
+      play(time);
+    } else {
+      useTransportStore.getState().seek(time);
+    }
+  }, [play]);
+
+  // Register the onEnded callback to loop playback
+  useEffect(() => {
+    const engine = getAudioEngine();
+    engine.setOnEndedCallback(() => {
+      // Loop: reset to 0 and play again
+      useTransportStore.getState().setCurrentTime(0);
+      play(0);
+    });
+    return () => {
+      engine.setOnEndedCallback(() => {});
+    };
+  }, [play]);
+
+  return { isPlaying, currentTime, play, pause, stop, seek };
+}

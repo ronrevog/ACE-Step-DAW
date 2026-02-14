@@ -1,0 +1,95 @@
+import { useState } from 'react';
+import { useUIStore } from '../../store/uiStore';
+import { useProjectStore } from '../../store/projectStore';
+import { getAudioEngine } from '../../hooks/useAudioEngine';
+import { loadAudioBlobByKey } from '../../services/audioFileManager';
+import { exportMixToWav } from '../../engine/exportMix';
+
+export function ExportDialog() {
+  const show = useUIStore((s) => s.showExportDialog);
+  const setShow = useUIStore((s) => s.setShowExportDialog);
+  const project = useProjectStore((s) => s.project);
+  const [exporting, setExporting] = useState(false);
+
+  if (!show || !project) return null;
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const engine = getAudioEngine();
+      const clips: Array<{ startTime: number; buffer: AudioBuffer; volume: number }> = [];
+
+      for (const track of project.tracks) {
+        if (track.muted) continue;
+        for (const clip of track.clips) {
+          if (clip.generationStatus === 'ready' && clip.isolatedAudioKey) {
+            const blob = await loadAudioBlobByKey(clip.isolatedAudioKey);
+            if (blob) {
+              const buffer = await engine.decodeAudioData(blob);
+              clips.push({ startTime: clip.startTime, buffer, volume: track.volume });
+            }
+          }
+        }
+      }
+
+      const wavBlob = await exportMixToWav(clips, project.totalDuration);
+      const url = URL.createObjectURL(wavBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${project.name}.wav`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setShow(false);
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const readyClips = project.tracks.flatMap((t) =>
+    t.clips.filter((c) => c.generationStatus === 'ready'),
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="w-[360px] bg-daw-surface rounded-lg border border-daw-border shadow-2xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-daw-border">
+          <h2 className="text-sm font-medium">Export Mix</h2>
+          <button
+            onClick={() => setShow(false)}
+            className="text-zinc-500 hover:text-zinc-300 text-lg leading-none"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-zinc-400">
+            Export all generated clips as a stereo WAV file at 48kHz.
+          </p>
+          <p className="text-xs text-zinc-500">
+            {readyClips.length} clip{readyClips.length !== 1 ? 's' : ''} ready across{' '}
+            {project.tracks.length} track{project.tracks.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        <div className="flex justify-end px-4 py-3 border-t border-daw-border gap-2">
+          <button
+            onClick={() => setShow(false)}
+            className="px-4 py-1.5 text-xs font-medium bg-daw-surface-2 hover:bg-zinc-600 rounded transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={exporting || readyClips.length === 0}
+            className="px-4 py-1.5 text-xs font-medium bg-daw-accent hover:bg-daw-accent-hover text-white rounded transition-colors disabled:opacity-50"
+          >
+            {exporting ? 'Exporting...' : 'Export WAV'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
