@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { healthCheck } from '../../services/aceStepApi';
 import { useGenerationStore } from '../../store/generationStore';
+import { useProjectStore } from '../../store/projectStore';
 
 export function StatusBar() {
   const [connected, setConnected] = useState(false);
   const jobs = useGenerationStore((s) => s.jobs);
   const activeJobs = jobs.filter((j) => j.status === 'generating' || j.status === 'queued');
+  const model = useProjectStore((s) => s.project?.generationDefaults.model);
 
   useEffect(() => {
     let active = true;
@@ -26,7 +28,7 @@ export function StatusBar() {
         />
         <span>{connected ? 'Connected' : 'Disconnected'}</span>
       </div>
-      <span>Base Model</span>
+      <span>{model || 'Server Default'}</span>
       {activeJobs.length > 0 && (
         <span>Queue: {activeJobs.length}</span>
       )}

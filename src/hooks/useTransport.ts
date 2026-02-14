@@ -21,6 +21,8 @@ export function useTransport() {
       trackId: string;
       startTime: number;
       buffer: AudioBuffer;
+      audioOffset: number;
+      clipDuration: number;
     }> = [];
 
     for (const track of proj.tracks) {
@@ -34,6 +36,8 @@ export function useTransport() {
               trackId: track.id,
               startTime: clip.startTime,
               buffer,
+              audioOffset: clip.audioOffset ?? 0,
+              clipDuration: clip.duration,
             });
           }
         }
@@ -77,18 +81,37 @@ export function useTransport() {
     }
   }, [play]);
 
-  // Register the onEnded callback to loop playback
+  // Register the onEnded callback — respect loopEnabled
   useEffect(() => {
     const engine = getAudioEngine();
     engine.setOnEndedCallback(() => {
-      // Loop: reset to 0 and play again
-      useTransportStore.getState().setCurrentTime(0);
-      play(0);
+      const { loopEnabled } = useTransportStore.getState();
+      if (loopEnabled) {
+        useTransportStore.getState().setCurrentTime(0);
+        play(0);
+      } else {
+        useTransportStore.getState().stop();
+      }
     });
     return () => {
       engine.setOnEndedCallback(() => {});
     };
   }, [play]);
+
+  // Sync mute/solo/volume to audio engine TrackNodes during playback
+  useEffect(() => {
+    if (!project || !isPlaying) return;
+    const engine = getAudioEngine();
+    for (const track of project.tracks) {
+      const trackNode = engine.trackNodes.get(track.id);
+      if (trackNode) {
+        trackNode.volume = track.volume;
+        trackNode.muted = track.muted;
+        trackNode.soloed = track.soloed;
+      }
+    }
+    engine.updateSoloState();
+  }, [project, isPlaying]);
 
   return { isPlaying, currentTime, play, pause, stop, seek };
 }

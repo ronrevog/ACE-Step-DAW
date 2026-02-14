@@ -19,8 +19,10 @@ export function ExportDialog() {
       const engine = getAudioEngine();
       const clips: Array<{ startTime: number; buffer: AudioBuffer; volume: number }> = [];
 
+      const anySoloed = project.tracks.some((t) => t.soloed);
       for (const track of project.tracks) {
         if (track.muted) continue;
+        if (anySoloed && !track.soloed) continue;
         for (const clip of track.clips) {
           if (clip.generationStatus === 'ready' && clip.isolatedAudioKey) {
             const blob = await loadAudioBlobByKey(clip.isolatedAudioKey);

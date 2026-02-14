@@ -8,7 +8,6 @@ export function SettingsDialog() {
   const show = useUIStore((s) => s.showSettingsDialog);
   const setShow = useUIStore((s) => s.setShowSettingsDialog);
   const project = useProjectStore((s) => s.project);
-  const updateClip = useProjectStore((s) => s.updateClip);
 
   const [steps, setSteps] = useState(50);
   const [guidance, setGuidance] = useState(7.0);
@@ -18,15 +17,16 @@ export function SettingsDialog() {
   const [availableModels, setAvailableModels] = useState<ModelEntry[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
 
+  // Only sync form state when dialog opens, not on every project mutation
   useEffect(() => {
-    if (project) {
+    if (show && project) {
       setSteps(project.generationDefaults.inferenceSteps);
       setGuidance(project.generationDefaults.guidanceScale);
       setShift(project.generationDefaults.shift);
       setThinking(project.generationDefaults.thinking);
       setModel(project.generationDefaults.model);
     }
-  }, [project]);
+  }, [show]);
 
   useEffect(() => {
     if (!show) return;
@@ -40,24 +40,22 @@ export function SettingsDialog() {
   if (!show) return null;
 
   const handleSave = () => {
-    if (project) {
-      // Update project defaults directly through the store
-      const store = useProjectStore.getState();
-      if (store.project) {
-        useProjectStore.setState({
-          project: {
-            ...store.project,
-            generationDefaults: {
-              ...store.project.generationDefaults,
-              inferenceSteps: steps,
-              guidanceScale: guidance,
-              shift,
-              thinking,
-              model,
-            },
+    const store = useProjectStore.getState();
+    if (store.project) {
+      useProjectStore.setState({
+        project: {
+          ...store.project,
+          updatedAt: Date.now(),
+          generationDefaults: {
+            ...store.project.generationDefaults,
+            inferenceSteps: steps,
+            guidanceScale: guidance,
+            shift,
+            thinking,
+            model,
           },
-        });
-      }
+        },
+      });
     }
     setShow(false);
   };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { useUIStore } from '../../store/uiStore';
 import { KEY_SCALES, TIME_SIGNATURES } from '../../constants/tracks';
@@ -20,6 +20,16 @@ export function NewProjectDialog() {
   const [bpm, setBpm] = useState(DEFAULT_BPM);
   const [keyScale, setKeyScale] = useState(DEFAULT_KEY_SCALE);
   const [timeSignature, setTimeSignature] = useState(DEFAULT_TIME_SIGNATURE);
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (show) {
+      setName(DEFAULT_PROJECT_NAME);
+      setBpm(DEFAULT_BPM);
+      setKeyScale(DEFAULT_KEY_SCALE);
+      setTimeSignature(DEFAULT_TIME_SIGNATURE);
+    }
+  }, [show]);
 
   if (!show) return null;
 
