@@ -1,9 +1,12 @@
 import { useTransport } from '../../hooks/useTransport';
+import { useTransportStore } from '../../store/transportStore';
 import { TimeDisplay } from './TimeDisplay';
 import { TempoDisplay } from './TempoDisplay';
 
 export function TransportBar() {
   const { isPlaying, play, pause, stop } = useTransport();
+  const loopEnabled = useTransportStore((s) => s.loopEnabled);
+  const toggleLoop = useTransportStore((s) => s.toggleLoop);
 
   return (
     <div className="flex items-center h-10 px-3 gap-3 bg-daw-surface border-b border-daw-border">
@@ -35,13 +38,27 @@ export function TransportBar() {
             </svg>
           )}
         </button>
+        <button
+          onClick={toggleLoop}
+          className={`w-8 h-8 flex items-center justify-center rounded transition-colors ${
+            loopEnabled ? 'bg-daw-accent text-white' : 'hover:bg-daw-surface-2 text-zinc-400'
+          }`}
+          title={loopEnabled ? 'Loop On' : 'Loop Off'}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 1l2 2-2 2" />
+            <path d="M4 13l-2-2 2-2" />
+            <path d="M12 3H5a3 3 0 0 0 0 6" />
+            <path d="M2 11h7a3 3 0 0 0 0-6" />
+          </svg>
+        </button>
       </div>
 
       <div className="w-px h-6 bg-daw-border" />
 
       <TimeDisplay />
 
-      <div className="w-px h-6 bg-daw-border" />
+      <div className="flex-1" />
 
       <TempoDisplay />
     </div>

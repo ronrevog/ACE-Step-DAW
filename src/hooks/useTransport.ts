@@ -52,7 +52,18 @@ export function useTransport() {
     engine.updateSoloState();
 
     const startFrom = fromTime ?? useTransportStore.getState().currentTime;
-    engine.schedulePlayback(clipBuffers, startFrom, proj.totalDuration);
+
+    // When looping, end at the last clip's endpoint instead of the full timeline
+    const { loopEnabled } = useTransportStore.getState();
+    let effectiveEnd = proj.totalDuration;
+    if (loopEnabled && clipBuffers.length > 0) {
+      const lastClipEnd = clipBuffers.reduce(
+        (max, cb) => Math.max(max, cb.startTime + cb.clipDuration), 0,
+      );
+      if (lastClipEnd > 0) effectiveEnd = lastClipEnd;
+    }
+
+    engine.schedulePlayback(clipBuffers, startFrom, effectiveEnd);
     useTransportStore.getState().play();
   }, []);
 
