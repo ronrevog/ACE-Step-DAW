@@ -20,11 +20,13 @@ export function ClipPromptEditor() {
   const [startTime, setStartTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [sampleMode, setSampleMode] = useState(false);
+  const [autoExpandPrompt, setAutoExpandPrompt] = useState(true);
   // 'auto' = ACE-Step infers, null = use project default, number = manual override
   const [overrideBpm, setOverrideBpm] = useState<number | 'auto' | null>('auto');
   const [overrideKey, setOverrideKey] = useState<string | 'auto' | null>('auto');
   const [overrideTimeSig, setOverrideTimeSig] = useState<number | 'auto' | null>('auto');
 
+  // Only reset form when switching to a different clip (not on every store update)
   useEffect(() => {
     if (clip) {
       setPrompt(clip.prompt);
@@ -32,11 +34,12 @@ export function ClipPromptEditor() {
       setStartTime(clip.startTime);
       setDuration(clip.duration);
       setSampleMode(clip.sampleMode ?? false);
+      setAutoExpandPrompt(clip.autoExpandPrompt ?? true);
       setOverrideBpm(clip.bpm === undefined ? 'auto' : clip.bpm);
       setOverrideKey(clip.keyScale === undefined ? 'auto' : clip.keyScale);
       setOverrideTimeSig(clip.timeSignature === undefined ? 'auto' : clip.timeSignature);
     }
-  }, [clip]);
+  }, [editingClipId]);
 
   if (!editingClipId || !clip || !project) return null;
 
@@ -50,6 +53,7 @@ export function ClipPromptEditor() {
       keyScale: overrideKey,
       timeSignature: overrideTimeSig,
       sampleMode,
+      autoExpandPrompt,
     });
     setEditingClip(null);
   };
@@ -61,6 +65,7 @@ export function ClipPromptEditor() {
       keyScale: overrideKey,
       timeSignature: overrideTimeSig,
       sampleMode,
+      autoExpandPrompt,
     });
     setEditingClip(null);
     generateClip(editingClipId);
@@ -85,15 +90,26 @@ export function ClipPromptEditor() {
         </div>
 
         <div className="p-4 space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={sampleMode}
-              onChange={(e) => setSampleMode(e.target.checked)}
-              className="w-4 h-4 rounded border-daw-border bg-daw-bg accent-daw-accent"
-            />
-            <span className="text-xs text-zinc-400">Sample Mode</span>
-          </label>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={sampleMode}
+                onChange={(e) => setSampleMode(e.target.checked)}
+                className="w-4 h-4 rounded border-daw-border bg-daw-bg accent-daw-accent"
+              />
+              <span className="text-xs text-zinc-400">Sample Mode</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoExpandPrompt}
+                onChange={(e) => setAutoExpandPrompt(e.target.checked)}
+                className="w-4 h-4 rounded border-daw-border bg-daw-bg accent-daw-accent"
+              />
+              <span className="text-xs text-zinc-400">Auto-expand prompt</span>
+            </label>
+          </div>
 
           <div>
             <label className="block text-xs text-zinc-400 mb-1">
