@@ -47,7 +47,7 @@ export const useUIStore = create<UIState>((set) => ({
   showExportDialog: false,
   showSettingsDialog: false,
   showProjectListDialog: false,
-  showMixer: false,
+  showMixer: true,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
