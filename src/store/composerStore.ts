@@ -45,6 +45,17 @@ interface ComposerState {
     extractTrack: string;
     selectedLora: string;
 
+    // New ACE-Step 1.5 params
+    coverStrength: number;       // 0.0-1.0 for Cover mode
+    ditModel: string;            // turbo, sft, base, turbo-shift1, turbo-shift3
+    lmModel: string;             // none, 0.6B, 1.7B, 4B
+    lmTemperature: number;       // 0.0-2.0
+    lmTopP: number;              // 0.0-1.0
+    lmCfgScale: number;          // LM CFG
+    useCotCaption: boolean;      // auto-expand prompt
+    useCotMetas: boolean;        // auto-infer BPM/key/etc
+    inferMethod: 'ode' | 'sde';  // deterministic vs random
+
     // Setters
     setPrompt: (v: string) => void;
     setLyrics: (v: string) => void;
@@ -63,6 +74,15 @@ interface ComposerState {
     setRepaintEnd: (v: number) => void;
     setExtractTrack: (v: string) => void;
     setSelectedLora: (v: string) => void;
+    setCoverStrength: (v: number) => void;
+    setDitModel: (v: string) => void;
+    setLmModel: (v: string) => void;
+    setLmTemperature: (v: number) => void;
+    setLmTopP: (v: number) => void;
+    setLmCfgScale: (v: number) => void;
+    setUseCotCaption: (v: boolean) => void;
+    setUseCotMetas: (v: boolean) => void;
+    setInferMethod: (v: 'ode' | 'sde') => void;
 
     // Output metadata (blobs in IDB)
     outputs: OutputMeta[];
@@ -95,6 +115,18 @@ export const useComposerStore = create<ComposerState>()(
             repaintEnd: 10,
             extractTrack: 'vocals',
             selectedLora: '',
+
+            // ACE-Step 1.5 defaults
+            coverStrength: 1.0,
+            ditModel: 'turbo',
+            lmModel: '1.7B',
+            lmTemperature: 0.85,
+            lmTopP: 0.9,
+            lmCfgScale: 2.0,
+            useCotCaption: true,
+            useCotMetas: true,
+            inferMethod: 'ode' as const,
+
             outputs: [],
 
             // Mode
@@ -118,6 +150,15 @@ export const useComposerStore = create<ComposerState>()(
             setRepaintEnd: (repaintEnd) => set({ repaintEnd }),
             setExtractTrack: (extractTrack) => set({ extractTrack }),
             setSelectedLora: (selectedLora) => set({ selectedLora }),
+            setCoverStrength: (coverStrength) => set({ coverStrength }),
+            setDitModel: (ditModel) => set({ ditModel }),
+            setLmModel: (lmModel) => set({ lmModel }),
+            setLmTemperature: (lmTemperature) => set({ lmTemperature }),
+            setLmTopP: (lmTopP) => set({ lmTopP }),
+            setLmCfgScale: (lmCfgScale) => set({ lmCfgScale }),
+            setUseCotCaption: (useCotCaption) => set({ useCotCaption }),
+            setUseCotMetas: (useCotMetas) => set({ useCotMetas }),
+            setInferMethod: (inferMethod) => set({ inferMethod }),
 
             // Outputs
             addOutput: async (meta, blob) => {
@@ -166,6 +207,15 @@ export const useComposerStore = create<ComposerState>()(
                 repaintEnd: state.repaintEnd,
                 extractTrack: state.extractTrack,
                 selectedLora: state.selectedLora,
+                coverStrength: state.coverStrength,
+                ditModel: state.ditModel,
+                lmModel: state.lmModel,
+                lmTemperature: state.lmTemperature,
+                lmTopP: state.lmTopP,
+                lmCfgScale: state.lmCfgScale,
+                useCotCaption: state.useCotCaption,
+                useCotMetas: state.useCotMetas,
+                inferMethod: state.inferMethod,
                 outputs: state.outputs,
             }),
         },

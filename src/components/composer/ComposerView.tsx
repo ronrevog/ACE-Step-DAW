@@ -50,8 +50,8 @@ export function ComposerView() {
     const setMode = cs.setMode;
     const currentMode = ALL_MODES.find((m) => m.id === mode)!;
 
-    const { prompt, lyrics, duration, bpm, keyScale, timeSig, steps, guidance, shift, thinking, batchSize, sampleMode, audioFormat, repaintStart, repaintEnd, extractTrack, selectedLora } = cs;
-    const { setPrompt, setLyrics, setDuration, setBpm, setKeyScale, setTimeSig, setSteps, setGuidance, setShift, setThinking, setBatchSize, setSampleMode, setAudioFormat, setRepaintStart, setRepaintEnd, setExtractTrack, setSelectedLora } = cs;
+    const { prompt, lyrics, duration, bpm, keyScale, timeSig, steps, guidance, shift, thinking, batchSize, sampleMode, audioFormat, repaintStart, repaintEnd, extractTrack, selectedLora, coverStrength, ditModel, lmModel, lmTemperature, lmTopP, lmCfgScale, useCotCaption, useCotMetas, inferMethod } = cs;
+    const { setPrompt, setLyrics, setDuration, setBpm, setKeyScale, setTimeSig, setSteps, setGuidance, setShift, setThinking, setBatchSize, setSampleMode, setAudioFormat, setRepaintStart, setRepaintEnd, setExtractTrack, setSelectedLora, setCoverStrength, setDitModel, setLmModel, setLmTemperature, setLmTopP, setLmCfgScale, setUseCotCaption, setUseCotMetas, setInferMethod } = cs;
 
     // Persistent outputs (metadata in store, blobs in IDB)
     const persistedOutputs = cs.outputs;
@@ -114,13 +114,21 @@ export function ComposerView() {
             key_scale: keyScale, time_signature: timeSig,
             inference_steps: steps, guidance_scale: guidance, shift,
             batch_size: batchSize, audio_format: audioFormat, thinking,
-            model: defaults?.model || '',
+            model: ditModel || defaults?.model || '',
             sample_mode: sampleMode || undefined,
+            // ACE-Step 1.5 advanced params
+            use_cot_caption: useCotCaption,
+            use_cot_metas: useCotMetas,
+            lm_model: lmModel !== 'none' ? lmModel : undefined,
+            lm_temperature: lmTemperature,
+            lm_top_p: lmTopP,
+            lm_cfg_scale: lmCfgScale,
+            infer_method: inferMethod,
         };
 
         switch (mode) {
             case 'text2music': return { ...base, task_type: 'text2music' as const };
-            case 'cover': return { ...base, task_type: 'cover' as const };
+            case 'cover': return { ...base, task_type: 'cover' as const, audio_cover_strength: coverStrength };
             case 'repaint': return { ...base, task_type: 'repaint' as const, repainting_start: repaintStart, repainting_end: repaintEnd };
             case 'vocal2bgm': return { ...base, task_type: 'vocal2bgm' as const };
             case 'extract': return { ...base, task_type: 'extract' as const, track_name: extractTrack };
@@ -408,6 +416,111 @@ export function ComposerView() {
                                     <p className="text-[9px] text-slate-600">No trained LoRAs found. Train one in the Training tab.</p>
                                 )}
                             </div>
+
+                            {/* Cover Strength (only in Cover mode) */}
+                            {mode === 'cover' && (
+                                <div className="bg-amber-900/10 rounded border border-amber-500/20 p-3 space-y-2">
+                                    <h3 className="text-[10px] uppercase text-amber-400/80 font-bold tracking-[0.15em] flex items-center gap-1.5">
+                                        <span className="material-symbols-outlined text-xs">tune</span>
+                                        Cover Strength
+                                    </h3>
+                                    <p className="text-[9px] text-slate-600">How closely to follow source audio structure. High = faithful cover, Low = free interpretation.</p>
+                                    <div className="flex items-center gap-3">
+                                        <input type="range" min={0} max={100} value={Math.round(coverStrength * 100)}
+                                            onChange={(e) => setCoverStrength(parseInt(e.target.value) / 100)}
+                                            className="flex-1 h-1 accent-amber-500" />
+                                        <span className="text-xs font-mono text-amber-400/80 w-10 text-right">{coverStrength.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Model Selection */}
+                            <div className="bg-daw-surface rounded border border-daw-border p-3 space-y-3">
+                                <h3 className="text-[10px] uppercase text-slate-500 font-bold tracking-[0.15em] flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-xs">memory</span>
+                                    Models
+                                </h3>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[9px] uppercase text-slate-600 font-bold block mb-1 tracking-wider">DiT Model</label>
+                                        <select value={ditModel} onChange={(e) => setDitModel(e.target.value)}
+                                            className="w-full bg-daw-panel border border-daw-border rounded px-2 py-1.5 text-xs text-white focus:border-daw-accent/50 outline-none">
+                                            <option value="turbo">Turbo (default, 8 steps)</option>
+                                            <option value="turbo-shift1">Turbo Shift-1 (rich details)</option>
+                                            <option value="turbo-shift3">Turbo Shift-3 (clear timbre)</option>
+                                            <option value="sft">SFT (50 steps, CFG)</option>
+                                            <option value="base">Base (extract/lego/complete)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[9px] uppercase text-slate-600 font-bold block mb-1 tracking-wider">LM Planner</label>
+                                        <select value={lmModel} onChange={(e) => setLmModel(e.target.value)}
+                                            className="w-full bg-daw-panel border border-daw-border rounded px-2 py-1.5 text-xs text-white focus:border-daw-accent/50 outline-none">
+                                            <option value="none">None (you plan)</option>
+                                            <option value="0.6B">0.6B (fast, basic)</option>
+                                            <option value="1.7B">1.7B (default)</option>
+                                            <option value="4B">4B (rich, slow)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <p className="text-[8px] text-slate-700">
+                                    {ditModel === 'turbo' && 'Best balance of creativity and semantics. 8 steps.'}
+                                    {ditModel === 'turbo-shift1' && 'Richer details, weaker semantics. Good for texture.'}
+                                    {ditModel === 'turbo-shift3' && 'Clearer timbre, may sound dry. Good for clean mixes.'}
+                                    {ditModel === 'sft' && 'Supports CFG, 50 steps. Better detail + semantics, slower.'}
+                                    {ditModel === 'base' && 'Master model. Supports extract, lego, complete tasks + LoRA fine-tuning.'}
+                                </p>
+                            </div>
+
+                            {/* Advanced LM & Inference */}
+                            <details className="bg-daw-surface rounded border border-daw-border">
+                                <summary className="p-3 text-[10px] uppercase text-slate-500 font-bold tracking-[0.15em] cursor-pointer hover:text-slate-400 flex items-center gap-1.5">
+                                    <span className="material-symbols-outlined text-xs">settings</span>
+                                    Advanced Parameters
+                                </summary>
+                                <div className="px-3 pb-3 space-y-3">
+                                    {/* CoT sub-controls */}
+                                    <div className="flex items-center gap-5">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" checked={useCotCaption} onChange={(e) => setUseCotCaption(e.target.checked)}
+                                                className="w-3 h-3 rounded border-daw-border bg-daw-bg accent-daw-accent" />
+                                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Auto-expand Prompt</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input type="checkbox" checked={useCotMetas} onChange={(e) => setUseCotMetas(e.target.checked)}
+                                                className="w-3 h-3 rounded border-daw-border bg-daw-bg accent-daw-accent" />
+                                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Auto-infer Metadata</span>
+                                        </label>
+                                    </div>
+                                    {/* LM params */}
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div>
+                                            <label className="text-[9px] uppercase text-slate-600 font-bold block mb-1 tracking-wider">LM Temp</label>
+                                            <input type="number" value={lmTemperature} onChange={(e) => setLmTemperature(parseFloat(e.target.value) || 0.85)} min={0} max={2} step={0.05}
+                                                className="w-full bg-daw-panel border border-daw-border rounded px-2 py-1 text-xs text-right text-white focus:border-daw-accent/50 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] uppercase text-slate-600 font-bold block mb-1 tracking-wider">LM Top-P</label>
+                                            <input type="number" value={lmTopP} onChange={(e) => setLmTopP(parseFloat(e.target.value) || 0.9)} min={0} max={1} step={0.05}
+                                                className="w-full bg-daw-panel border border-daw-border rounded px-2 py-1 text-xs text-right text-white focus:border-daw-accent/50 outline-none" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] uppercase text-slate-600 font-bold block mb-1 tracking-wider">LM CFG</label>
+                                            <input type="number" value={lmCfgScale} onChange={(e) => setLmCfgScale(parseFloat(e.target.value) || 2)} min={0} max={10} step={0.5}
+                                                className="w-full bg-daw-panel border border-daw-border rounded px-2 py-1 text-xs text-right text-white focus:border-daw-accent/50 outline-none" />
+                                        </div>
+                                    </div>
+                                    {/* Inference method */}
+                                    <div>
+                                        <label className="text-[9px] uppercase text-slate-600 font-bold block mb-1 tracking-wider">Inference Method</label>
+                                        <select value={inferMethod} onChange={(e) => setInferMethod(e.target.value as 'ode' | 'sde')}
+                                            className="w-full bg-daw-panel border border-daw-border rounded px-2 py-1.5 text-xs text-white focus:border-daw-accent/50 outline-none">
+                                            <option value="ode">ODE (deterministic)</option>
+                                            <option value="sde">SDE (more random/creative)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </details>
 
                             {/* Generation Parameters */}
                             <div className="bg-daw-surface rounded border border-daw-border p-3 space-y-3">

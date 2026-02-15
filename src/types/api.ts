@@ -24,11 +24,31 @@ export interface BaseTaskParams {
   batch_size: number;
   audio_format: 'wav' | 'mp3';
   thinking: boolean;
-  model: string;
+  model: string;                // DiT model: turbo (default), sft, base, turbo-shift1, turbo-shift3
   sample_mode?: boolean;
   sample_query?: string;
   use_format?: boolean;
-  use_cot_caption?: boolean;
+
+  // CoT sub-controls (when thinking=true)
+  use_cot_caption?: boolean;    // Let LM optimize/expand your caption
+  use_cot_metas?: boolean;      // Let LM auto-infer BPM, key, etc.
+  use_cot_language?: boolean;   // Let LM auto-detect vocal language
+
+  // LM model and parameters
+  lm_model?: string;            // none, 0.6B, 1.7B, 4B
+  lm_temperature?: number;      // 0.0-2.0, default 0.85. Higher = more creative
+  lm_top_k?: number;            // 0 = disabled
+  lm_top_p?: number;            // nucleus sampling, default 0.9
+  lm_cfg_scale?: number;        // LM CFG strength, default 2.0
+  lm_negative_prompt?: string;  // tells LM what NOT to generate
+
+  // Audio control
+  audio_cover_strength?: number; // 0.0-1.0, controls how closely to follow source audio (Cover mode)
+  vocal_language?: string;       // vocal language hint
+
+  // Advanced DiT params
+  use_adg?: boolean;            // Adaptive Dual Guidance (Base model only)
+  infer_method?: 'ode' | 'sde'; // ode=deterministic, sde=more random
 }
 
 /** Lego (multi-track) task - used by DAW timeline */
