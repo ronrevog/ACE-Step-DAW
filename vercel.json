@@ -1,0 +1,16 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/modal/loras",
+            "destination": "https://marcf--acestep-acestepinference-api-list-loras.modal.run/"
+        },
+        {
+            "source": "/api/modal/train",
+            "destination": "https://marcf--acestep-acestepinference-api-train.modal.run/"
+        },
+        {
+            "source": "/api/modal",
+            "destination": "https://marcf--acestep-acestepinference-api-generate.modal.run/"
+        }
+    ]
+}
