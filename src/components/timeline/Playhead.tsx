@@ -8,10 +8,15 @@ export function Playhead() {
 
   return (
     <div
-      className="absolute top-0 bottom-0 w-px bg-daw-playhead z-20 pointer-events-none"
-      style={{ left: x }}
+      className="absolute top-0 bottom-0 w-px bg-daw-accent z-30 pointer-events-none"
+      style={{
+        left: x,
+        boxShadow: '0 0 8px rgba(59, 130, 246, 0.6)',
+      }}
     >
-      <div className="absolute -top-0 -left-[4px] w-0 h-0 border-l-[5px] border-r-[5px] border-t-[6px] border-l-transparent border-r-transparent border-t-red-500" />
+      <div className="absolute -top-1 -translate-x-1/2 text-daw-accent">
+        <span className="material-symbols-outlined text-base">arrow_drop_down</span>
+      </div>
     </div>
   );
 }

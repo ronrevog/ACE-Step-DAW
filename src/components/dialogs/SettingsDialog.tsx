@@ -14,6 +14,7 @@ export function SettingsDialog() {
   const [shift, setShift] = useState(3.0);
   const [thinking, setThinking] = useState(true);
   const [model, setModel] = useState('');
+  const [useModal, setUseModal] = useState(true);
   const [availableModels, setAvailableModels] = useState<ModelEntry[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
 
@@ -25,17 +26,18 @@ export function SettingsDialog() {
       setShift(project.generationDefaults.shift);
       setThinking(project.generationDefaults.thinking);
       setModel(project.generationDefaults.model);
+      setUseModal(project.generationDefaults.useModal ?? true);
     }
   }, [show]);
 
   useEffect(() => {
-    if (!show) return;
+    if (!show || useModal) return;
     setModelsLoading(true);
     listModels()
       .then((resp) => setAvailableModels(resp.models))
       .catch(() => setAvailableModels([]))
       .finally(() => setModelsLoading(false));
-  }, [show]);
+  }, [show, useModal]);
 
   if (!show) return null;
 
@@ -53,6 +55,7 @@ export function SettingsDialog() {
             shift,
             thinking,
             model,
+            useModal,
           },
         },
       });
@@ -74,6 +77,22 @@ export function SettingsDialog() {
         </div>
 
         <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between p-2 bg-daw-bg rounded border border-daw-border">
+            <div>
+              <span className="text-xs font-medium text-zinc-300">⚡ Modal Cloud</span>
+              <p className="text-[10px] text-zinc-500 mt-0.5">Use Modal deployment instead of local server</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useModal}
+                onChange={(e) => setUseModal(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-zinc-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-daw-accent"></div>
+            </label>
+          </div>
+
           <h3 className="text-xs font-medium text-zinc-300">Generation Parameters</h3>
 
           <div className="grid grid-cols-2 gap-3">

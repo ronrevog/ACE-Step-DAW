@@ -6,10 +6,9 @@ export function TempoDisplay() {
   if (!project) return null;
 
   return (
-    <div className="flex items-center gap-2 text-xs text-zinc-400">
-      <span className="font-medium text-zinc-300">{project.bpm} BPM</span>
-      <span>{project.keyScale}</span>
-      <span>{project.timeSignature}/4</span>
+    <div className="flex items-center gap-2 text-xs">
+      <span className="opacity-40 uppercase font-bold tracking-[0.15em]">BPM</span>
+      <span className="font-bold text-white">{project.bpm.toFixed(2)}</span>
     </div>
   );
 }

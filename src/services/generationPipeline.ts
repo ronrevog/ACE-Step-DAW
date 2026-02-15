@@ -4,6 +4,7 @@ import { useGenerationStore } from '../store/generationStore';
 import type { LegoTaskParams, TaskResultItem } from '../types/api';
 import type { InferredMetas } from '../types/project';
 import * as api from './aceStepApi';
+import { generateViaModal } from './modalApi';
 import { generateSilenceWav } from './silenceGenerator';
 import { saveAudioBlob, loadAudioBlobByKey } from './audioFileManager';
 import { getAudioEngine } from '../hooks/useAudioEngine';
@@ -162,46 +163,71 @@ async function generateClipInternal(
     useGenerationStore.getState().updateJob(jobId, { status: 'generating', progress: 'Submitting...' });
     useProjectStore.getState().updateClipStatus(clipId, 'generating');
 
-    const releaseResp = await api.releaseLegoTask(srcAudioBlob, params);
-    const taskId = releaseResp.task_id;
-
-    // Poll for completion
-    const startTime = Date.now();
-    let resultAudioPath: string | null = null;
+    let cumulativeBlob: Blob;
     let firstResult: TaskResultItem | null = null;
 
-    while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
-      await sleep(POLL_INTERVAL_MS);
+    if (project.generationDefaults.useModal ?? true) {
+      // ── Modal path: synchronous generation ──
+      useGenerationStore.getState().updateJob(jobId, { progress: 'Generating via Modal (this may take a minute)...' });
 
-      const entries = await api.queryResult([taskId]);
-      const entry = entries?.[0];
-      if (!entry) continue;
+      const modalResult = await generateViaModal(srcAudioBlob, params);
+      cumulativeBlob = modalResult.audioBlob;
 
-      useGenerationStore.getState().updateJob(jobId, {
-        progress: entry.progress_text || 'Generating...',
-      });
-
-      if (entry.status === 1) {
-        // Done — result is a JSON string containing an array of {file, ...}
-        const resultItems: TaskResultItem[] = JSON.parse(entry.result);
-        firstResult = resultItems?.[0] ?? null;
-        resultAudioPath = firstResult?.file ?? null;
-        break;
-      } else if (entry.status === 2) {
-        throw new Error(`Generation failed: ${entry.result}`);
+      // Build a pseudo TaskResultItem from Modal response
+      if (modalResult.metas && Object.keys(modalResult.metas).length > 0) {
+        firstResult = {
+          file: '',
+          wave: '',
+          status: 1,
+          create_time: Date.now(),
+          env: 'modal',
+          prompt: clip.prompt,
+          lyrics: clip.lyrics,
+          metas: modalResult.metas,
+          seed_value: modalResult.seed_value,
+          dit_model: modalResult.dit_model,
+        };
       }
-      // status 0 = still processing
+    } else {
+      // ── Standard API path: async queue ──
+      const releaseResp = await api.releaseLegoTask(srcAudioBlob, params);
+      const taskId = releaseResp.task_id;
+
+      // Poll for completion
+      const startTime = Date.now();
+      let resultAudioPath: string | null = null;
+
+      while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
+        await sleep(POLL_INTERVAL_MS);
+
+        const entries = await api.queryResult([taskId]);
+        const entry = entries?.[0];
+        if (!entry) continue;
+
+        useGenerationStore.getState().updateJob(jobId, {
+          progress: entry.progress_text || 'Generating...',
+        });
+
+        if (entry.status === 1) {
+          const resultItems: TaskResultItem[] = JSON.parse(entry.result);
+          firstResult = resultItems?.[0] ?? null;
+          resultAudioPath = firstResult?.file ?? null;
+          break;
+        } else if (entry.status === 2) {
+          throw new Error(`Generation failed: ${entry.result}`);
+        }
+      }
+
+      if (!resultAudioPath) {
+        throw new Error('Generation timed out');
+      }
+
+      // Download audio
+      useGenerationStore.getState().updateJob(jobId, { status: 'processing', progress: 'Downloading audio...' });
+      useProjectStore.getState().updateClipStatus(clipId, 'processing');
+
+      cumulativeBlob = await api.downloadAudio(resultAudioPath);
     }
-
-    if (!resultAudioPath) {
-      throw new Error('Generation timed out');
-    }
-
-    // Download audio
-    useGenerationStore.getState().updateJob(jobId, { status: 'processing', progress: 'Downloading audio...' });
-    useProjectStore.getState().updateClipStatus(clipId, 'processing');
-
-    const cumulativeBlob = await api.downloadAudio(resultAudioPath);
 
     // Store cumulative mix
     const cumulativeKey = await saveAudioBlob(project.id, clipId, 'cumulative', cumulativeBlob);
@@ -253,13 +279,13 @@ async function generateClipInternal(
     // Build inferred metadata from result
     const inferredMetas: InferredMetas | undefined = firstResult
       ? {
-          bpm: firstResult.metas?.bpm,
-          keyScale: firstResult.metas?.keyscale,
-          timeSignature: firstResult.metas?.timesignature,
-          genres: firstResult.metas?.genres,
-          seed: firstResult.seed_value,
-          ditModel: firstResult.dit_model,
-        }
+        bpm: firstResult.metas?.bpm,
+        keyScale: firstResult.metas?.keyscale,
+        timeSignature: firstResult.metas?.timesignature,
+        genres: firstResult.metas?.genres,
+        seed: firstResult.seed_value,
+        ditModel: firstResult.dit_model,
+      }
       : undefined;
 
     // Update clip as ready

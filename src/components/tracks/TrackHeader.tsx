@@ -11,56 +11,71 @@ export function TrackHeader({ track }: TrackHeaderProps) {
   const removeTrack = useProjectStore((s) => s.removeTrack);
   const info = TRACK_CATALOG[track.trackName];
 
-  return (
-    <div
-      className="flex items-center gap-2 h-16 px-2 border-b border-daw-border group"
-      style={{ borderLeft: `3px solid ${track.color}` }}
-    >
-      <span className="text-base" title={info.displayName}>{info.emoji}</span>
+  const volumePct = Math.round(track.volume * 100);
 
-      <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-zinc-200 truncate">{track.displayName}</div>
+  return (
+    <div className="flex flex-col justify-between h-24 border-b border-daw-border bg-daw-panel group hover:bg-daw-panel-light transition-colors">
+      {/* Top: Name + Track number */}
+      <div className="px-2.5 pt-2">
+        <div className="flex items-center justify-between mb-1.5">
+          <span
+            className="text-[10px] font-bold tracking-[0.15em] uppercase truncate"
+            style={{ color: track.color }}
+          >
+            {track.displayName}
+          </span>
+          <span className="text-[9px] text-slate-600 font-mono">{String(track.order + 1).padStart(2, '0')}</span>
+        </div>
+
+        {/* Mute / Solo / Remove buttons */}
+        <div className="flex gap-1">
+          <button
+            onClick={() => updateTrack(track.id, { muted: !track.muted })}
+            className={`w-5 h-4 text-[8px] font-bold flex items-center justify-center rounded transition-colors ${track.muted
+              ? 'bg-amber-600/80 text-white'
+              : 'bg-black/40 text-slate-600 hover:text-white'
+              }`}
+            title="Mute"
+          >
+            M
+          </button>
+          <button
+            onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
+            className={`w-5 h-4 text-[8px] font-bold flex items-center justify-center rounded transition-colors ${track.soloed
+              ? 'bg-emerald-600/80 text-white'
+              : 'bg-black/40 text-slate-600 hover:text-white'
+              }`}
+            title="Solo"
+          >
+            S
+          </button>
+          <button
+            onClick={() => removeTrack(track.id)}
+            className="w-5 h-4 text-[8px] font-bold flex items-center justify-center rounded bg-black/40 text-slate-600 hover:text-red-400 hover:bg-red-900/30 transition-all ml-auto"
+            title="Remove track"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      {/* Bottom: Volume meter */}
+      <div className="px-2.5 pb-2">
+        <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500/80 transition-all"
+            style={{ width: `${volumePct}%` }}
+          />
+        </div>
         <input
           type="range"
           min="0"
           max="100"
-          value={Math.round(track.volume * 100)}
+          value={volumePct}
           onChange={(e) => updateTrack(track.id, { volume: parseInt(e.target.value) / 100 })}
-          className="w-full h-1 mt-1"
-          title={`Volume: ${Math.round(track.volume * 100)}%`}
+          className="w-full h-0.5 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+          title={`Volume: ${volumePct}%`}
         />
-      </div>
-
-      <div className="flex items-center gap-0.5">
-        <button
-          onClick={() => updateTrack(track.id, { muted: !track.muted })}
-          className={`w-6 h-5 text-[10px] font-bold rounded transition-colors ${
-            track.muted
-              ? 'bg-amber-600 text-white'
-              : 'bg-daw-surface-2 text-zinc-500 hover:text-zinc-300'
-          }`}
-          title="Mute"
-        >
-          M
-        </button>
-        <button
-          onClick={() => updateTrack(track.id, { soloed: !track.soloed })}
-          className={`w-6 h-5 text-[10px] font-bold rounded transition-colors ${
-            track.soloed
-              ? 'bg-emerald-600 text-white'
-              : 'bg-daw-surface-2 text-zinc-500 hover:text-zinc-300'
-          }`}
-          title="Solo"
-        >
-          S
-        </button>
-        <button
-          onClick={() => removeTrack(track.id)}
-          className="w-6 h-5 text-[10px] font-bold rounded bg-daw-surface-2 text-zinc-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-          title="Remove track"
-        >
-          ×
-        </button>
       </div>
     </div>
   );

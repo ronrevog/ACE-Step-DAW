@@ -7,13 +7,12 @@ export function TrackList() {
 
   if (!project) return null;
 
-  // Display tracks in visual order: lowest order at bottom
   const sortedTracks = [...project.tracks].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="flex flex-col w-[200px] min-w-[200px] bg-daw-surface border-r border-daw-border">
+    <div className="flex flex-col w-32 min-w-[128px] bg-daw-panel border-r border-daw-border z-10 shadow-sm shrink-0">
       {/* Header spacer aligned with TimeRuler */}
-      <div className="h-6 border-b border-daw-border" />
+      <div className="h-8 border-b border-daw-border" />
 
       <div className="flex-1 overflow-y-auto">
         {sortedTracks.map((track) => (

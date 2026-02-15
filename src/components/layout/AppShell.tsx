@@ -1,11 +1,12 @@
 import { useEffect, useCallback } from 'react';
 import { Toolbar } from './Toolbar';
 import { StatusBar } from './StatusBar';
-import { TransportBar } from '../transport/TransportBar';
 import { TrackList } from '../tracks/TrackList';
 import { Timeline } from '../timeline/Timeline';
 import { GenerationPanel } from '../generation/GenerationPanel';
+import { MixerConsole } from '../mixer/MixerConsole';
 import { ClipPromptEditor } from '../generation/ClipPromptEditor';
+import { ComposerView } from '../composer/ComposerView';
 import { NewProjectDialog } from '../dialogs/NewProjectDialog';
 import { InstrumentPicker } from '../dialogs/InstrumentPicker';
 import { ExportDialog } from '../dialogs/ExportDialog';
@@ -19,25 +20,23 @@ import { useTransport } from '../../hooks/useTransport';
 export function AppShell() {
   const { resumeOnGesture } = useAudioEngine();
   const project = useProjectStore((s) => s.project);
+  const activeTab = useUIStore((s) => s.activeTab);
+  const showMixer = useUIStore((s) => s.showMixer);
   const setShowNewProjectDialog = useUIStore((s) => s.setShowNewProjectDialog);
   const { isPlaying, play, pause, stop } = useTransport();
 
-  // Resume AudioContext on first user interaction
   const handleClick = useCallback(() => {
     resumeOnGesture();
   }, [resumeOnGesture]);
 
-  // Show new project dialog on first load if no project
   useEffect(() => {
     if (!project) {
       setShowNewProjectDialog(true);
     }
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in inputs
       if (
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
@@ -45,7 +44,6 @@ export function AppShell() {
       ) {
         return;
       }
-
       switch (e.code) {
         case 'Space':
           e.preventDefault();
@@ -59,16 +57,24 @@ export function AppShell() {
   }, [isPlaying, play, pause, stop]);
 
   return (
-    <div className="flex flex-col h-screen" onClick={handleClick}>
+    <div className="flex flex-col h-screen bg-daw-bg" onClick={handleClick}>
       <Toolbar />
-      <TransportBar />
 
-      <div className="flex flex-1 min-h-0">
-        {project && <TrackList />}
-        <Timeline />
-      </div>
+      {activeTab === 'daw' ? (
+        <>
+          <div className="flex flex-1 min-h-0">
+            {project && <TrackList />}
+            <Timeline />
+          </div>
+          {project && showMixer && <MixerConsole />}
+          {project && <GenerationPanel />}
+        </>
+      ) : (
+        <div className="flex-1 min-h-0">
+          <ComposerView />
+        </div>
+      )}
 
-      {project && <GenerationPanel />}
       <StatusBar />
 
       {/* Modals */}

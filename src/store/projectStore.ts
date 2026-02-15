@@ -58,252 +58,267 @@ function computeTotalDuration(tracks: Track[]): number {
 export const useProjectStore = create<ProjectState>()(
   persist(
     (set, get) => ({
-  project: null,
+      project: null,
 
-  setProject: (project) => set({ project }),
+      setProject: (project) => set({ project }),
 
-  createProject: (params) => {
-    const project: Project = {
-      id: uuidv4(),
-      name: params?.name ?? DEFAULT_PROJECT_NAME,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      bpm: params?.bpm ?? DEFAULT_BPM,
-      keyScale: params?.keyScale ?? DEFAULT_KEY_SCALE,
-      timeSignature: params?.timeSignature ?? DEFAULT_TIME_SIGNATURE,
-      totalDuration: MIN_TIMELINE_DURATION,
-      tracks: [],
-      generationDefaults: { ...DEFAULT_GENERATION },
-    };
-    set({ project });
-  },
-
-  addTrack: (trackName) => {
-    const state = get();
-    if (!state.project) throw new Error('No project');
-
-    const info = TRACK_CATALOG[trackName];
-    const existingOrders = state.project.tracks.map((t) => t.order);
-    const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : 0;
-
-    const track: Track = {
-      id: uuidv4(),
-      trackName,
-      displayName: info.displayName,
-      color: info.color,
-      order: maxOrder + 1,
-      volume: 0.8,
-      muted: false,
-      soloed: false,
-      clips: [],
-    };
-
-    const newTracks = [...state.project.tracks, track];
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks),
-        tracks: newTracks,
+      createProject: (params) => {
+        const project: Project = {
+          id: uuidv4(),
+          name: params?.name ?? DEFAULT_PROJECT_NAME,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          bpm: params?.bpm ?? DEFAULT_BPM,
+          keyScale: params?.keyScale ?? DEFAULT_KEY_SCALE,
+          timeSignature: params?.timeSignature ?? DEFAULT_TIME_SIGNATURE,
+          totalDuration: MIN_TIMELINE_DURATION,
+          tracks: [],
+          generationDefaults: { ...DEFAULT_GENERATION },
+        };
+        set({ project });
       },
-    });
 
-    return track;
-  },
+      addTrack: (trackName) => {
+        const state = get();
+        if (!state.project) throw new Error('No project');
 
-  removeTrack: (trackId) => {
-    const state = get();
-    if (!state.project) return;
-    const newTracks = state.project.tracks.filter((t) => t.id !== trackId);
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks),
-        tracks: newTracks,
+        const info = TRACK_CATALOG[trackName];
+        const existingOrders = state.project.tracks.map((t) => t.order);
+        const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : 0;
+
+        const track: Track = {
+          id: uuidv4(),
+          trackName,
+          displayName: info.displayName,
+          color: info.color,
+          order: maxOrder + 1,
+          volume: 0.8,
+          muted: false,
+          soloed: false,
+          clips: [],
+        };
+
+        const newTracks = [...state.project.tracks, track];
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            totalDuration: computeTotalDuration(newTracks),
+            tracks: newTracks,
+          },
+        });
+
+        return track;
       },
-    });
-  },
 
-  updateTrack: (trackId, updates) => {
-    const state = get();
-    if (!state.project) return;
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        tracks: state.project.tracks.map((t) =>
-          t.id === trackId ? { ...t, ...updates } : t,
-        ),
+      removeTrack: (trackId) => {
+        const state = get();
+        if (!state.project) return;
+        const newTracks = state.project.tracks.filter((t) => t.id !== trackId);
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            totalDuration: computeTotalDuration(newTracks),
+            tracks: newTracks,
+          },
+        });
       },
-    });
-  },
 
-  addClip: (trackId, clipData) => {
-    const state = get();
-    if (!state.project) throw new Error('No project');
-
-    const clip: Clip = {
-      id: uuidv4(),
-      trackId,
-      startTime: clipData.startTime,
-      duration: clipData.duration,
-      prompt: clipData.prompt,
-      lyrics: clipData.lyrics,
-      generationStatus: 'empty',
-      generationJobId: null,
-      cumulativeMixKey: null,
-      isolatedAudioKey: null,
-      waveformPeaks: null,
-      bpm: 'auto',
-      keyScale: 'auto',
-      timeSignature: 'auto',
-    };
-
-    const newTracks = state.project.tracks.map((t) =>
-      t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t,
-    );
-
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks),
-        tracks: newTracks,
+      updateTrack: (trackId, updates) => {
+        const state = get();
+        if (!state.project) return;
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            tracks: state.project.tracks.map((t) =>
+              t.id === trackId ? { ...t, ...updates } : t,
+            ),
+          },
+        });
       },
-    });
 
-    return clip;
-  },
+      addClip: (trackId, clipData) => {
+        const state = get();
+        if (!state.project) throw new Error('No project');
 
-  updateClip: (clipId, updates) => {
-    const state = get();
-    if (!state.project) return;
-    const newTracks = state.project.tracks.map((t) => ({
-      ...t,
-      clips: t.clips.map((c) =>
-        c.id === clipId ? { ...c, ...updates } : c,
-      ),
-    }));
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks),
-        tracks: newTracks,
+        const clip: Clip = {
+          id: uuidv4(),
+          trackId,
+          startTime: clipData.startTime,
+          duration: clipData.duration,
+          prompt: clipData.prompt,
+          lyrics: clipData.lyrics,
+          generationStatus: 'empty',
+          generationJobId: null,
+          cumulativeMixKey: null,
+          isolatedAudioKey: null,
+          waveformPeaks: null,
+          bpm: 'auto',
+          keyScale: 'auto',
+          timeSignature: 'auto',
+        };
+
+        const newTracks = state.project.tracks.map((t) =>
+          t.id === trackId ? { ...t, clips: [...t.clips, clip] } : t,
+        );
+
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            totalDuration: computeTotalDuration(newTracks),
+            tracks: newTracks,
+          },
+        });
+
+        return clip;
       },
-    });
-  },
 
-  removeClip: (clipId) => {
-    const state = get();
-    if (!state.project) return;
-    const newTracks = state.project.tracks.map((t) => ({
-      ...t,
-      clips: t.clips.filter((c) => c.id !== clipId),
-    }));
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks),
-        tracks: newTracks,
-      },
-    });
-  },
-
-  duplicateClip: (clipId) => {
-    const state = get();
-    if (!state.project) return undefined;
-
-    let sourceClip: Clip | undefined;
-    let trackId: string | undefined;
-    for (const t of state.project.tracks) {
-      const c = t.clips.find((c) => c.id === clipId);
-      if (c) { sourceClip = c; trackId = t.id; break; }
-    }
-    if (!sourceClip || !trackId) return undefined;
-
-    const isReady = sourceClip.generationStatus === 'ready' && !!sourceClip.isolatedAudioKey;
-    const newClip: Clip = {
-      ...sourceClip,
-      id: uuidv4(),
-      startTime: sourceClip.startTime + sourceClip.duration,
-      generationStatus: isReady ? 'ready' : 'empty',
-      generationJobId: null,
-      cumulativeMixKey: sourceClip.cumulativeMixKey,
-      isolatedAudioKey: isReady ? sourceClip.isolatedAudioKey : null,
-      waveformPeaks: isReady && sourceClip.waveformPeaks ? [...sourceClip.waveformPeaks] : null,
-    };
-
-    const newTracks = state.project.tracks.map((t) =>
-      t.id === trackId ? { ...t, clips: [...t.clips, newClip] } : t,
-    );
-
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        totalDuration: computeTotalDuration(newTracks),
-        tracks: newTracks,
-      },
-    });
-
-    return newClip;
-  },
-
-  updateClipStatus: (clipId, status, extra) => {
-    const state = get();
-    if (!state.project) return;
-    set({
-      project: {
-        ...state.project,
-        updatedAt: Date.now(),
-        tracks: state.project.tracks.map((t) => ({
+      updateClip: (clipId, updates) => {
+        const state = get();
+        if (!state.project) return;
+        const newTracks = state.project.tracks.map((t) => ({
           ...t,
           clips: t.clips.map((c) =>
-            c.id === clipId ? { ...c, generationStatus: status, ...extra } : c,
+            c.id === clipId ? { ...c, ...updates } : c,
           ),
-        })),
+        }));
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            totalDuration: computeTotalDuration(newTracks),
+            tracks: newTracks,
+          },
+        });
       },
-    });
-  },
 
-  getTrackById: (trackId) => {
-    return get().project?.tracks.find((t) => t.id === trackId);
-  },
+      removeClip: (clipId) => {
+        const state = get();
+        if (!state.project) return;
+        const newTracks = state.project.tracks.map((t) => ({
+          ...t,
+          clips: t.clips.filter((c) => c.id !== clipId),
+        }));
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            totalDuration: computeTotalDuration(newTracks),
+            tracks: newTracks,
+          },
+        });
+      },
 
-  getClipById: (clipId) => {
-    const project = get().project;
-    if (!project) return undefined;
-    for (const track of project.tracks) {
-      const clip = track.clips.find((c) => c.id === clipId);
-      if (clip) return clip;
-    }
-    return undefined;
-  },
+      duplicateClip: (clipId) => {
+        const state = get();
+        if (!state.project) return undefined;
 
-  getTrackForClip: (clipId) => {
-    const project = get().project;
-    if (!project) return undefined;
-    return project.tracks.find((t) => t.clips.some((c) => c.id === clipId));
-  },
+        let sourceClip: Clip | undefined;
+        let trackId: string | undefined;
+        for (const t of state.project.tracks) {
+          const c = t.clips.find((c) => c.id === clipId);
+          if (c) { sourceClip = c; trackId = t.id; break; }
+        }
+        if (!sourceClip || !trackId) return undefined;
 
-  getTracksInGenerationOrder: () => {
-    const project = get().project;
-    if (!project) return [];
-    return [...project.tracks].sort((a, b) => b.order - a.order);
-  },
+        const isReady = sourceClip.generationStatus === 'ready' && !!sourceClip.isolatedAudioKey;
+        const newClip: Clip = {
+          ...sourceClip,
+          id: uuidv4(),
+          startTime: sourceClip.startTime + sourceClip.duration,
+          generationStatus: isReady ? 'ready' : 'empty',
+          generationJobId: null,
+          cumulativeMixKey: sourceClip.cumulativeMixKey,
+          isolatedAudioKey: isReady ? sourceClip.isolatedAudioKey : null,
+          waveformPeaks: isReady && sourceClip.waveformPeaks ? [...sourceClip.waveformPeaks] : null,
+        };
 
-  getTotalDuration: () => {
-    const project = get().project;
-    if (!project) return MIN_TIMELINE_DURATION;
-    return project.totalDuration;
-  },
-}),
+        const newTracks = state.project.tracks.map((t) =>
+          t.id === trackId ? { ...t, clips: [...t.clips, newClip] } : t,
+        );
+
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            totalDuration: computeTotalDuration(newTracks),
+            tracks: newTracks,
+          },
+        });
+
+        return newClip;
+      },
+
+      updateClipStatus: (clipId, status, extra) => {
+        const state = get();
+        if (!state.project) return;
+        set({
+          project: {
+            ...state.project,
+            updatedAt: Date.now(),
+            tracks: state.project.tracks.map((t) => ({
+              ...t,
+              clips: t.clips.map((c) =>
+                c.id === clipId ? { ...c, generationStatus: status, ...extra } : c,
+              ),
+            })),
+          },
+        });
+      },
+
+      getTrackById: (trackId) => {
+        return get().project?.tracks.find((t) => t.id === trackId);
+      },
+
+      getClipById: (clipId) => {
+        const project = get().project;
+        if (!project) return undefined;
+        for (const track of project.tracks) {
+          const clip = track.clips.find((c) => c.id === clipId);
+          if (clip) return clip;
+        }
+        return undefined;
+      },
+
+      getTrackForClip: (clipId) => {
+        const project = get().project;
+        if (!project) return undefined;
+        return project.tracks.find((t) => t.clips.some((c) => c.id === clipId));
+      },
+
+      getTracksInGenerationOrder: () => {
+        const project = get().project;
+        if (!project) return [];
+        return [...project.tracks].sort((a, b) => b.order - a.order);
+      },
+
+      getTotalDuration: () => {
+        const project = get().project;
+        if (!project) return MIN_TIMELINE_DURATION;
+        return project.totalDuration;
+      },
+    }),
     {
       name: 'ace-step-daw-project',
       partialize: (state) => ({ project: state.project }),
+      // Migrate old projects that don't have newer fields
+      merge: (persisted: unknown, current: ProjectState) => {
+        const state = persisted as Partial<ProjectState>;
+        if (state?.project) {
+          // Ensure generationDefaults has all fields
+          if (state.project.generationDefaults) {
+            if (state.project.generationDefaults.useModal === undefined) {
+              state.project.generationDefaults.useModal = true;
+            }
+          } else {
+            state.project.generationDefaults = { ...DEFAULT_GENERATION };
+          }
+        }
+        return { ...current, ...state };
+      },
     },
   ),
 );

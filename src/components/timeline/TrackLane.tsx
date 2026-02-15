@@ -15,7 +15,6 @@ export function TrackLane({ track }: TrackLaneProps) {
   const { handleLaneClick } = useTimelineInteraction();
 
   const onClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    // Only create a clip if the click target is the lane itself, not a child clip
     if (e.target !== e.currentTarget) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -28,7 +27,7 @@ export function TrackLane({ track }: TrackLaneProps) {
 
   return (
     <div
-      className="relative h-16 border-b border-daw-border"
+      className="relative h-24 border-b border-daw-border bg-daw-surface/40 hover:bg-daw-surface/60 transition-colors"
       style={{ width: totalWidth }}
       onClick={onClick}
     >

@@ -4,18 +4,35 @@
 export class TrackNode {
   readonly inputGain: GainNode;
   readonly volumeGain: GainNode;
+  readonly analyser: AnalyserNode;
 
   private _volume = 0.8;
   private _muted = false;
   private _soloed = false;
-  private _soloActive = false; // true if any track in the session is soloed
+  private _soloActive = false;
 
   constructor(private ctx: AudioContext, destination: AudioNode) {
     this.inputGain = ctx.createGain();
     this.volumeGain = ctx.createGain();
+    this.analyser = ctx.createAnalyser();
+    this.analyser.fftSize = 256;
+    this.analyser.smoothingTimeConstant = 0.8;
     this.inputGain.connect(this.volumeGain);
-    this.volumeGain.connect(destination);
+    this.volumeGain.connect(this.analyser);
+    this.analyser.connect(destination);
     this.volumeGain.gain.value = this._volume;
+  }
+
+  /** Get current peak level (0-1) for metering */
+  getPeakLevel(): number {
+    const data = new Float32Array(this.analyser.fftSize);
+    this.analyser.getFloatTimeDomainData(data);
+    let peak = 0;
+    for (let i = 0; i < data.length; i++) {
+      const abs = Math.abs(data[i]);
+      if (abs > peak) peak = abs;
+    }
+    return Math.min(peak, 1);
   }
 
   get volume() { return this._volume; }

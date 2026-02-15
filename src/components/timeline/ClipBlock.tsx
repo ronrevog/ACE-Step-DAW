@@ -35,7 +35,6 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
 
   const dragRef = useRef(false);
 
-  // Context menu state
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number } | null>(null);
 
   const getDragMode = useCallback((e: React.MouseEvent): DragMode => {
@@ -73,14 +72,12 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         newStart = Math.max(0, Math.min(newStart, totalDuration - origDuration));
         updateClip(clip.id, { startTime: newStart });
       } else if (mode === 'resize-left') {
-        // Dragging left edge: crops from the start of the audio
         let newStart = snapToGrid(origStart + deltaSec, bpm, 1);
         newStart = Math.max(0, newStart);
         const maxStart = origStart + origDuration - MIN_CLIP_DURATION;
         newStart = Math.min(newStart, maxStart);
 
         const shift = newStart - origStart;
-        // Constrain: can't crop past the audio buffer end
         let newAudioOffset = origAudioOffset + shift;
         if (newAudioOffset < 0) {
           newStart = origStart - origAudioOffset;
@@ -93,11 +90,9 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         const newDuration = origDuration + (origStart - newStart);
         updateClip(clip.id, { startTime: newStart, duration: newDuration, audioOffset: newAudioOffset });
       } else {
-        // Dragging right edge: crops from the end of the audio
         let newDuration = snapToGrid(origDuration + deltaSec, bpm, 1);
         newDuration = Math.max(MIN_CLIP_DURATION, newDuration);
         newDuration = Math.min(newDuration, totalDuration - origStart);
-        // Can't extend past audio buffer end
         const maxDuration = origAudioDuration - origAudioOffset;
         newDuration = Math.min(newDuration, maxDuration);
         updateClip(clip.id, { duration: newDuration });
@@ -154,12 +149,10 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
     stale: 'opacity-50',
   };
 
-  // Crop waveform peaks to the visible region
   const audioDuration = clip.audioDuration ?? clip.duration;
   const audioOffset = clip.audioOffset ?? 0;
-  const peakWidthPx = width - 4; // padding
+  const peakWidthPx = width - 4;
 
-  // Determine visible portion of peaks array
   const startPeakIdx = peaks ? Math.floor((audioOffset / audioDuration) * peaks.length) : 0;
   const endPeakIdx = peaks ? Math.min(
     Math.ceil(((audioOffset + clip.duration) / audioDuration) * peaks.length),
@@ -172,15 +165,14 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
   return (
     <>
       <div
-        className={`absolute top-1 bottom-1 rounded-sm select-none overflow-hidden
+        className={`absolute top-1 bottom-1 rounded select-none overflow-hidden border border-white/10
           ${statusStyles[clip.generationStatus] ?? ''}
-          ${isSelected ? 'ring-2 ring-white ring-offset-1 ring-offset-transparent' : ''}
+          ${isSelected ? 'ring-1 ring-daw-accent ring-offset-1 ring-offset-transparent' : ''}
         `}
         style={{
           left,
           width: Math.max(width, 4),
-          backgroundColor: hexToRgba(track.color, 0.3),
-          borderLeft: `2px solid ${track.color}`,
+          backgroundColor: hexToRgba(track.color, 0.15),
         }}
         onMouseDown={handleMouseDown}
         onClick={handleClick}
@@ -192,7 +184,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         <div className="absolute top-0 bottom-0 left-0 w-[6px] cursor-col-resize z-10" />
         <div className="absolute top-0 bottom-0 right-0 w-[6px] cursor-col-resize z-10" />
 
-        {/* Waveform — peaks rendered at fixed density, not stretched */}
+        {/* Waveform */}
         {peaks && numBars > 0 && (
           <div className="absolute inset-0 flex items-center overflow-hidden">
             <svg
@@ -200,7 +192,7 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
               height="100%"
               viewBox={`0 0 ${peakWidthPx} 100`}
               preserveAspectRatio="none"
-              className="opacity-60 ml-0.5"
+              className="opacity-50 ml-0.5"
             >
               {Array.from({ length: numBars }, (_, i) => {
                 const peakIdx = startPeakIdx + Math.floor((i / numBars) * visiblePeakCount);
@@ -222,23 +214,23 @@ export function ClipBlock({ clip, track }: ClipBlockProps) {
         )}
 
         {/* Label */}
-        <div className="absolute top-0 left-1.5 right-1.5 text-[9px] font-medium text-white truncate leading-4 z-10 drop-shadow-sm pointer-events-none">
+        <div className="absolute top-1.5 left-2 right-1.5 text-[9px] font-bold text-slate-400 truncate leading-none z-10 pointer-events-none">
           {clip.prompt || '(no prompt)'}
         </div>
 
         {/* Status indicator */}
         {clip.generationStatus === 'generating' && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/20">
+            <div className="w-4 h-4 border-2 border-daw-accent border-t-transparent rounded-full animate-spin" />
           </div>
         )}
         {clip.generationStatus === 'error' && (
-          <div className="absolute bottom-0 left-1.5 text-[8px] text-red-300 truncate pointer-events-none">
+          <div className="absolute bottom-1 left-2 text-[8px] text-red-400 truncate pointer-events-none">
             Error
           </div>
         )}
         {clip.generationStatus === 'ready' && clip.inferredMetas && (
-          <div className="absolute bottom-0 left-1.5 right-1.5 text-[8px] text-zinc-400 truncate pointer-events-none">
+          <div className="absolute bottom-1 left-2 right-1.5 text-[8px] text-slate-600 truncate pointer-events-none">
             {[
               clip.inferredMetas.bpm != null ? `${clip.inferredMetas.bpm}bpm` : null,
               clip.inferredMetas.keyScale || null,
@@ -280,33 +272,37 @@ function ClipContextMenu({
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} onContextMenu={(e) => { e.preventDefault(); onClose(); }} />
       <div
-        className="fixed z-50 bg-daw-surface border border-daw-border rounded shadow-xl py-1 min-w-[140px]"
+        className="fixed z-50 bg-daw-panel border border-daw-border rounded shadow-2xl py-1 min-w-[140px]"
         style={{ left: x, top: y }}
       >
         <button
           onClick={onEdit}
-          className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors"
+          className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors flex items-center gap-2"
         >
+          <span className="material-symbols-outlined text-xs">edit</span>
           Edit Clip
         </button>
         <button
           onClick={onGenerate}
           disabled={!hasPrompt}
-          className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors disabled:text-zinc-600 disabled:cursor-not-allowed"
+          className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors disabled:text-slate-700 disabled:cursor-not-allowed flex items-center gap-2"
         >
+          <span className="material-symbols-outlined text-xs">auto_awesome</span>
           Generate
         </button>
         <button
           onClick={onDuplicate}
-          className="w-full text-left px-3 py-1.5 text-xs text-zinc-200 hover:bg-daw-surface-2 transition-colors"
+          className="w-full text-left px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 transition-colors flex items-center gap-2"
         >
+          <span className="material-symbols-outlined text-xs">content_copy</span>
           Duplicate
         </button>
         <div className="my-1 border-t border-daw-border" />
         <button
           onClick={onDelete}
-          className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/30 transition-colors"
+          className="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/20 transition-colors flex items-center gap-2"
         >
+          <span className="material-symbols-outlined text-xs">delete</span>
           Delete
         </button>
       </div>

@@ -22,6 +22,7 @@ export interface ClipScheduleInfo {
 export class AudioEngine {
   ctx: AudioContext;
   masterGain: GainNode;
+  masterAnalyser: AnalyserNode;
   trackNodes: Map<string, TrackNode> = new Map();
   scheduledSources: ScheduledSource[] = [];
 
@@ -39,7 +40,22 @@ export class AudioEngine {
   constructor() {
     this.ctx = new AudioContext({ sampleRate: 48000 });
     this.masterGain = this.ctx.createGain();
-    this.masterGain.connect(this.ctx.destination);
+    this.masterAnalyser = this.ctx.createAnalyser();
+    this.masterAnalyser.fftSize = 256;
+    this.masterAnalyser.smoothingTimeConstant = 0.8;
+    this.masterGain.connect(this.masterAnalyser);
+    this.masterAnalyser.connect(this.ctx.destination);
+  }
+
+  getMasterPeakLevel(): number {
+    const data = new Float32Array(this.masterAnalyser.fftSize);
+    this.masterAnalyser.getFloatTimeDomainData(data);
+    let peak = 0;
+    for (let i = 0; i < data.length; i++) {
+      const abs = Math.abs(data[i]);
+      if (abs > peak) peak = abs;
+    }
+    return Math.min(peak, 1);
   }
 
   async resume() {

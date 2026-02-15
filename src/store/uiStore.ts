@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 
+export type ActiveTab = 'daw' | 'composer';
+
 interface UIState {
+  activeTab: ActiveTab;
   pixelsPerSecond: number;
   scrollX: number;
   scrollY: number;
@@ -11,7 +14,9 @@ interface UIState {
   showExportDialog: boolean;
   showSettingsDialog: boolean;
   showProjectListDialog: boolean;
+  showMixer: boolean;
 
+  setActiveTab: (tab: ActiveTab) => void;
   setPixelsPerSecond: (pps: number) => void;
   zoomIn: () => void;
   zoomOut: () => void;
@@ -25,11 +30,13 @@ interface UIState {
   setShowExportDialog: (v: boolean) => void;
   setShowSettingsDialog: (v: boolean) => void;
   setShowProjectListDialog: (v: boolean) => void;
+  toggleMixer: () => void;
 }
 
 const ZOOM_LEVELS = [10, 25, 50, 100, 200, 500];
 
 export const useUIStore = create<UIState>((set) => ({
+  activeTab: 'composer',
   pixelsPerSecond: 50,
   scrollX: 0,
   scrollY: 0,
@@ -40,7 +47,9 @@ export const useUIStore = create<UIState>((set) => ({
   showExportDialog: false,
   showSettingsDialog: false,
   showProjectListDialog: false,
+  showMixer: false,
 
+  setActiveTab: (tab) => set({ activeTab: tab }),
   setPixelsPerSecond: (pps) => set({ pixelsPerSecond: pps }),
 
   zoomIn: () =>
@@ -79,4 +88,5 @@ export const useUIStore = create<UIState>((set) => ({
   setShowExportDialog: (v) => set({ showExportDialog: v }),
   setShowSettingsDialog: (v) => set({ showSettingsDialog: v }),
   setShowProjectListDialog: (v) => set({ showProjectListDialog: v }),
+  toggleMixer: () => set((s) => ({ showMixer: !s.showMixer })),
 }));

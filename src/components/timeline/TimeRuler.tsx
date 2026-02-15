@@ -17,32 +17,43 @@ export function TimeRuler() {
     seek(time);
   }, [project, pixelsPerSecond, seek]);
 
-  if (!project) return <div className="h-6 bg-daw-surface border-b border-daw-border" />;
+  if (!project) return <div className="h-8 bg-daw-panel border-b border-daw-border" />;
 
   const barDuration = getBarDuration(project.bpm, project.timeSignature);
   const totalBars = Math.ceil(project.totalDuration / barDuration);
   const totalWidth = project.totalDuration * pixelsPerSecond;
+  const beatDuration = barDuration / project.timeSignature;
 
-  const markers: { bar: number; x: number }[] = [];
+  const markers: { bar: number; beat: number; x: number; isBeat: boolean }[] = [];
   for (let bar = 1; bar <= totalBars; bar++) {
-    const x = (bar - 1) * barDuration * pixelsPerSecond;
-    markers.push({ bar, x });
+    const barX = (bar - 1) * barDuration * pixelsPerSecond;
+    markers.push({ bar, beat: 1, x: barX, isBeat: false });
+    for (let beat = 2; beat <= project.timeSignature; beat++) {
+      const beatX = barX + (beat - 1) * beatDuration * pixelsPerSecond;
+      markers.push({ bar, beat, x: beatX, isBeat: true });
+    }
   }
 
   return (
     <div
-      className="relative h-6 bg-daw-surface border-b border-daw-border overflow-hidden select-none cursor-pointer"
+      className="relative h-8 bg-daw-panel border-b border-daw-border overflow-hidden select-none cursor-pointer"
       style={{ width: totalWidth }}
       onClick={handleClick}
     >
-      {markers.map(({ bar, x }) => (
+      {markers.map(({ bar, beat, x, isBeat }) => (
         <div
-          key={bar}
-          className="absolute top-0 h-full flex items-end pb-0.5 text-[10px] text-zinc-500 pointer-events-none"
+          key={`${bar}.${beat}`}
+          className="absolute top-0 h-full flex items-end pb-1.5 pointer-events-none"
           style={{ left: x }}
         >
-          <div className="w-px h-2 bg-daw-grid-bar mr-1" />
-          <span>{bar}</span>
+          {isBeat ? (
+            <div className="w-px h-1.5 bg-white/5" />
+          ) : (
+            <>
+              <div className="w-px h-3 bg-white/10 mr-1" />
+              <span className="text-[9px] font-bold text-slate-600">{bar}.1</span>
+            </>
+          )}
         </div>
       ))}
     </div>

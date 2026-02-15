@@ -7,6 +7,18 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
+      '/api/modal/loras': {
+        target: 'https://marcf--acestep-acestepinference-api-list-loras.modal.run',
+        changeOrigin: true,
+        rewrite: () => '/',
+        secure: true,
+      },
+      '/api/modal': {
+        target: 'https://marcf--acestep-acestepinference-api-generate.modal.run',
+        changeOrigin: true,
+        rewrite: () => '/',
+        secure: true,
+      },
       '/api': {
         target: 'http://localhost:8001',
         changeOrigin: true,
