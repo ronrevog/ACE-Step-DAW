@@ -145,8 +145,10 @@ export async function generateBatchViaModal(
  */
 export async function modalHealthCheck(): Promise<boolean> {
     try {
-        const res = await fetch(MODAL_PROXY, { method: 'OPTIONS' });
-        return true;
+        // Use a lightweight GET to the loras endpoint as a health probe
+        // (Modal doesn't support OPTIONS on the generate endpoint)
+        const res = await fetch('/api/modal/loras', { method: 'GET' });
+        return res.ok;
     } catch {
         return false;
     }

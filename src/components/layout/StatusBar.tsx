@@ -18,7 +18,7 @@ export function StatusBar() {
       if (active) setConnected(ok);
     };
     check();
-    const interval = setInterval(check, 15000);
+    const interval = setInterval(check, 30000);
     return () => { active = false; clearInterval(interval); };
   }, [useModal]);
 
