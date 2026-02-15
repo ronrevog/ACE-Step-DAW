@@ -65,6 +65,13 @@ export async function generateViaModal(
     if (srcAudioBlob && srcAudioBlob.size > 0) {
         const srcBase64 = await blobToBase64(srcAudioBlob);
         body.src_audio_base64 = srcBase64;
+
+        // For Cover mode: also send as reference_audio for timbre/style matching
+        // src_audio → melody/rhythm/chord structure
+        // reference_audio → timbre/mixing/performance style
+        if (body.task_type === 'cover') {
+            body.reference_audio_base64 = srcBase64;
+        }
     }
 
     const res = await fetch(MODAL_PROXY, {
@@ -114,6 +121,11 @@ export async function generateBatchViaModal(
     if (srcAudioBlob && srcAudioBlob.size > 0) {
         const srcBase64 = await blobToBase64(srcAudioBlob);
         body.src_audio_base64 = srcBase64;
+
+        // For Cover mode: also send as reference_audio for timbre/style matching
+        if (body.task_type === 'cover') {
+            body.reference_audio_base64 = srcBase64;
+        }
     }
 
     const res = await fetch(MODAL_PROXY, {

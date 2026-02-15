@@ -417,19 +417,33 @@ export function ComposerView() {
                                 )}
                             </div>
 
-                            {/* Cover Strength (only in Cover mode) */}
+                            {/* Cover Strength + Tips (only in Cover mode) */}
                             {mode === 'cover' && (
-                                <div className="bg-amber-900/10 rounded border border-amber-500/20 p-3 space-y-2">
+                                <div className="bg-amber-900/10 rounded border border-amber-500/20 p-3 space-y-3">
                                     <h3 className="text-[10px] uppercase text-amber-400/80 font-bold tracking-[0.15em] flex items-center gap-1.5">
                                         <span className="material-symbols-outlined text-xs">tune</span>
-                                        Cover Strength
+                                        Cover Settings
                                     </h3>
-                                    <p className="text-[9px] text-slate-600">How closely to follow source audio structure. High = faithful cover, Low = free interpretation.</p>
-                                    <div className="flex items-center gap-3">
-                                        <input type="range" min={0} max={100} value={Math.round(coverStrength * 100)}
-                                            onChange={(e) => setCoverStrength(parseInt(e.target.value) / 100)}
-                                            className="flex-1 h-1 accent-amber-500" />
-                                        <span className="text-xs font-mono text-amber-400/80 w-10 text-right">{coverStrength.toFixed(2)}</span>
+                                    <div>
+                                        <label className="text-[9px] uppercase text-amber-400/60 font-bold block mb-1 tracking-wider">Cover Strength</label>
+                                        <p className="text-[9px] text-slate-600 mb-1.5">How closely to follow source melody/rhythm/chords. 1.0 = faithful, 0.5 = loose remix.</p>
+                                        <div className="flex items-center gap-3">
+                                            <input type="range" min={0} max={100} value={Math.round(coverStrength * 100)}
+                                                onChange={(e) => setCoverStrength(parseInt(e.target.value) / 100)}
+                                                className="flex-1 h-1 accent-amber-500" />
+                                            <span className="text-xs font-mono text-amber-400/80 w-10 text-right">{coverStrength.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <div className="border-t border-amber-500/10 pt-2">
+                                        <h4 className="text-[9px] font-bold text-amber-400/60 uppercase tracking-wider mb-1">💡 Cover Tips</h4>
+                                        <ul className="text-[9px] text-slate-600 space-y-0.5">
+                                            <li>• <strong>Prompt</strong> describes the NEW style you want (e.g. "jazz piano ballad, female vocal")</li>
+                                            <li>• <strong>Lyrics</strong> can be changed for a remix, or kept similar for a true cover</li>
+                                            <li>• Set <strong>LM Planner = None</strong> for best results (source audio IS the plan)</li>
+                                            <li>• Set <strong>CoT = off</strong> to let DiT work directly from the audio structure</li>
+                                            <li>• <strong>Strength 1.0</strong> = faithful structure, <strong>0.7</strong> = creative interpretation</li>
+                                            <li>• Generate multiple batches and pick the best — randomness is a feature!</li>
+                                        </ul>
                                     </div>
                                 </div>
                             )}
