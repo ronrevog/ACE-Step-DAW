@@ -1,6 +1,7 @@
 import type { Track } from '../../types/project';
 import { useProjectStore } from '../../store/projectStore';
 import { TRACK_CATALOG } from '../../constants/tracks';
+import { useAudioImport } from '../../hooks/useAudioImport';
 
 interface TrackHeaderProps {
   track: Track;
@@ -9,6 +10,7 @@ interface TrackHeaderProps {
 export function TrackHeader({ track }: TrackHeaderProps) {
   const updateTrack = useProjectStore((s) => s.updateTrack);
   const removeTrack = useProjectStore((s) => s.removeTrack);
+  const { openFilePickerForTrack } = useAudioImport();
   const info = TRACK_CATALOG[track.trackName];
 
   const volumePct = Math.round(track.volume * 100);
@@ -48,6 +50,13 @@ export function TrackHeader({ track }: TrackHeaderProps) {
             title="Solo"
           >
             S
+          </button>
+          <button
+            onClick={() => openFilePickerForTrack(track.id)}
+            className="w-5 h-4 text-[8px] font-bold flex items-center justify-center rounded bg-black/40 text-slate-600 hover:text-blue-400 hover:bg-blue-900/30 transition-all"
+            title="Import audio to this track"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>upload</span>
           </button>
           <button
             onClick={() => removeTrack(track.id)}

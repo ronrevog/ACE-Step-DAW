@@ -5,6 +5,7 @@ import type { LegoTaskParams, TaskResultItem } from '../types/api';
 import type { InferredMetas } from '../types/project';
 import * as api from './aceStepApi';
 import { generateViaModal } from './modalApi';
+import { TRACK_CATALOG } from '../constants/tracks';
 import { generateSilenceWav } from './silenceGenerator';
 import { saveAudioBlob, loadAudioBlobByKey } from './audioFileManager';
 import { getAudioEngine } from '../hooks/useAudioEngine';
@@ -122,6 +123,13 @@ async function generateClipInternal(
     // Build instruction
     const instruction = `Generate the ${track.trackName.toUpperCase().replace('_', ' ')} track based on the audio context:`;
 
+    // Prepend track-type default prompt to user prompt
+    const trackInfo = TRACK_CATALOG[track.trackName];
+    const defaultPrompt = trackInfo?.defaultPrompt || '';
+    const combinedPrompt = defaultPrompt && clip.prompt
+      ? `${defaultPrompt}, ${clip.prompt}`
+      : defaultPrompt || clip.prompt;
+
     // Build params — 'auto' = ACE-Step infers, null/undefined = project defaults, value = manual
     const resolvedBpm = clip.bpm === 'auto' ? null : (clip.bpm ?? project.bpm);
     const resolvedKey = clip.keyScale === 'auto' ? '' : (clip.keyScale ?? project.keyScale);
@@ -130,7 +138,7 @@ async function generateClipInternal(
     const params: LegoTaskParams = {
       task_type: 'lego',
       track_name: track.trackName,
-      prompt: clip.prompt,
+      prompt: combinedPrompt,
       lyrics: clip.lyrics || '',
       instruction,
       repainting_start: clip.startTime,

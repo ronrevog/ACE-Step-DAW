@@ -86,10 +86,16 @@ export const useProjectStore = create<ProjectState>()(
         const existingOrders = state.project.tracks.map((t) => t.order);
         const maxOrder = existingOrders.length > 0 ? Math.max(...existingOrders) : 0;
 
+        // Auto-number duplicate track types (e.g. "Drums 2", "Drums 3")
+        const sameTypeCount = state.project.tracks.filter((t) => t.trackName === trackName).length;
+        const displayName = sameTypeCount > 0
+          ? `${info.displayName} ${sameTypeCount + 1}`
+          : info.displayName;
+
         const track: Track = {
           id: uuidv4(),
           trackName,
-          displayName: info.displayName,
+          displayName,
           color: info.color,
           order: maxOrder + 1,
           volume: 0.8,
