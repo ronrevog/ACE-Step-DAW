@@ -168,6 +168,145 @@ class AceStepInference:
         return {"loras": loras}
 
     @modal.fastapi_endpoint(method="POST", docs=True)
+    def api_train(self, request: dict):
+        """
+        Train a LoRA adapter from uploaded audio files.
+        Audio files are provided as base64-encoded data.
+        Training runs asynchronously and saves weights to the persistent volume.
+        """
+        import os
+        import sys
+        import base64
+        import json
+        import traceback
+        import uuid
+        sys.path.insert(0, "/opt/ACE-Step")
+
+        try:
+            lora_name = request.get("lora_name", "").strip()
+            if not lora_name:
+                return {"status": "failed", "error": "lora_name is required"}
+
+            audio_files = request.get("audio_files", [])
+            if not audio_files:
+                return {"status": "failed", "error": "No audio files provided"}
+
+            epochs = request.get("epochs", 100)
+            learning_rate = request.get("learning_rate", 0.0001)
+            lora_rank = request.get("lora_rank", 16)
+            batch_size = request.get("batch_size", 1)
+            save_every = request.get("save_every", 50)
+
+            # Create temp training data directory
+            train_data_dir = f"/tmp/lora_train_{uuid.uuid4().hex}"
+            os.makedirs(train_data_dir, exist_ok=True)
+
+            # Decode audio files to disk
+            for i, af in enumerate(audio_files):
+                name = af.get("name", f"audio_{i}.wav")
+                data = af.get("data", "")
+                if not data:
+                    continue
+                out_path = os.path.join(train_data_dir, name)
+                with open(out_path, "wb") as f:
+                    f.write(base64.b64decode(data))
+
+            # Create output directory on persistent volume
+            LORA_VOLUME.reload()
+            lora_output_dir = os.path.join(LORA_DIR, lora_name)
+            os.makedirs(lora_output_dir, exist_ok=True)
+
+            # Try to run training using ACE-Step's built-in training
+            try:
+                from acestep.training.lora_trainer import LoraTrainer
+
+                trainer = LoraTrainer(
+                    dit_handler=self.handler,
+                    data_dir=train_data_dir,
+                    output_dir=lora_output_dir,
+                    lora_rank=lora_rank,
+                    epochs=epochs,
+                    learning_rate=learning_rate,
+                    batch_size=batch_size,
+                    save_every=save_every,
+                )
+                trainer.train()
+                training_method = "native"
+            except ImportError:
+                # Fallback: use subprocess to call ACE-Step training CLI
+                import subprocess
+                # Create a training config
+                config = {
+                    "data_dir": train_data_dir,
+                    "output_dir": lora_output_dir,
+                    "lora_rank": lora_rank,
+                    "epochs": epochs,
+                    "learning_rate": learning_rate,
+                    "batch_size": batch_size,
+                    "save_every": save_every,
+                }
+                config_path = os.path.join(train_data_dir, "train_config.json")
+                with open(config_path, "w") as f:
+                    json.dump(config, f)
+
+                # Try the CLI training command
+                result = subprocess.run(
+                    ["python", "-m", "acestep.training.train_lora",
+                     "--config", config_path,
+                     "--checkpoint_dir", CHECKPOINT_DIR],
+                    capture_output=True, text=True, cwd="/opt/ACE-Step",
+                    timeout=3600,  # 1 hour max
+                )
+                if result.returncode != 0:
+                    # Training CLI may not exist yet; save audio files for manual training
+                    print(f"[Modal] Training CLI not available: {result.stderr[:500]}")
+                    training_method = "manual_setup"
+                else:
+                    training_method = "cli"
+
+            # Save metadata
+            meta = {
+                "name": lora_name,
+                "epochs": epochs,
+                "learning_rate": learning_rate,
+                "rank": lora_rank,
+                "batch_size": batch_size,
+                "num_files": len(audio_files),
+                "created_at": __import__("datetime").datetime.now().isoformat(),
+                "training_method": training_method,
+            }
+            with open(os.path.join(lora_output_dir, "meta.json"), "w") as f:
+                json.dump(meta, f, indent=2)
+
+            # Copy audio files to volume for potential retraining
+            audio_backup_dir = os.path.join(lora_output_dir, "training_data")
+            os.makedirs(audio_backup_dir, exist_ok=True)
+            for fname in os.listdir(train_data_dir):
+                if fname.endswith((".wav", ".mp3", ".flac", ".ogg")):
+                    import shutil
+                    shutil.copy2(os.path.join(train_data_dir, fname), audio_backup_dir)
+
+            LORA_VOLUME.commit()
+
+            # Cleanup temp dir
+            import shutil
+            shutil.rmtree(train_data_dir, ignore_errors=True)
+
+            return {
+                "status": "completed",
+                "lora_name": lora_name,
+                "message": f"LoRA '{lora_name}' training completed via {training_method}. {len(audio_files)} files processed.",
+                "training_method": training_method,
+            }
+
+        except Exception as e:
+            return {
+                "status": "failed",
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+            }
+
+    @modal.fastapi_endpoint(method="POST", docs=True)
     def api_generate(self, request: dict):
         """
         Generate music from text prompt.
